@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: osm-lead-generation-tool
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app
+    envVars:
+      - key: FLASK_DEBUG
+        value: '0'
+      - key: OSM_USER_AGENT
+        sync: false

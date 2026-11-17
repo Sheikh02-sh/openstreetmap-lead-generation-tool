@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Free OpenStreetMap Lead Finder</title><link rel="stylesheet" href="/static/style.css">
+<style>
+  #loadingBox[hidden] { display: none; }
+  #loadingBox {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 14px;
+    padding: 12px 14px;
+    border-radius: 10px;
+    border: 1px solid rgba(37, 99, 235, 0.35);
+    background: rgba(37, 99, 235, 0.08);
+    font-size: 14px;
+    line-height: 1.4;
+  }
+  #loadingBox .spinner {
+    flex: 0 0 auto;
+    width: 20px;
+    height: 20px;
+    border: 3px solid rgba(37, 99, 235, 0.25);
+    border-top-color: #2563eb;
+    border-radius: 50%;
+    animation: leadSpin 0.9s linear infinite;
+  }
+  @keyframes leadSpin { to { transform: rotate(360deg); } }
+  #searchBtn:disabled { opacity: 0.6; cursor: not-allowed; }
+</style>
+</head>
+<body><main class="wrap">
+<header><div><div class="eyebrow">FREE BUSINESS DISCOVERY</div><h1>Local Business Lead Finder</h1>
+<p>Search businesses using OpenStreetMap community data</p></div><span class="source">OpenStreetMap</span></header>
+<section class="panel">
+<div class="fields">
+<label>Business category / keyword<input id="keyword" placeholder="e.g. dentist, restaurant, pharmacy"></label>
+<label>City / area<input id="location" placeholder="e.g. Gulberg, Lahore, Pakistan"></label>
+<label>Search radius<select id="radius"><option value="2000">2 km</option><option value="5000" selected>5 km</option><option value="10000">10 km</option><option value="20000">20 km</option></select></label>
+</div>
+<div class="actions"><button id="searchBtn">Search businesses</button>
+<button id="csvBtn" class="secondary" disabled>Export CSV</button>
+<button id="xlsxBtn" class="secondary" disabled>Export Excel</button><span id="status" role="status"></span></div>
+<div id="loadingBox" role="status" aria-live="polite" hidden>
+  <div class="spinner"></div>
+  <div>
+    <strong>Searching OpenStreetMap... <span id="loadingTimer">0</span>s</strong><br>
+    <span>New searches can take 30 to 60 seconds because the free public map servers are slow. Please keep this page open. Repeat searches are instant.</span>
+  </div>
+</div>
+</section>
+<section class="stats"><div class="stat"><small>Total results</small><strong id="count">0</strong></div>
+<div class="stat"><small>Showing</small><strong id="showing">0</strong></div><div class="stat"><small>Status</small><strong id="state">Ready</strong></div></section>
+<section class="panel table-panel"><div class="tablehead"><div><h2>Business results</h2><p id="locationInfo">Search results will appear here.</p></div></div>
+<div class="scroll"><table><thead><tr><th>Business</th><th>Address</th><th>Phone</th><th>Website</th><th>Category</th><th>OpenStreetMap</th></tr></thead>
+<tbody id="results"><tr><td colspan="6" class="empty">Enter a category and location to start.</td></tr></tbody></table></div>
+<div class="pagination"><button id="moreBtn" class="secondary" hidden>Show more</button></div></section>
+<div class="notice"><strong>Data note:</strong> OpenStreetMap is community-maintained. Phone numbers, websites and addresses appear only when mapped by contributors. Google ratings, reviews and Google Place IDs are not provided.</div>
+<footer>Map data © OpenStreetMap contributors · <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">Copyright and attribution</a> · Public services have fair-use limits.</footer>
+</main>
+
+<!-- Loading message: wraps fetch so it works with the existing app.js -->
+<script>
+(function () {
+  var originalFetch = window.fetch;
+  var box = document.getElementById("loadingBox");
+  var timerEl = document.getElementById("loadingTimer");
+  var searchBtn = document.getElementById("searchBtn");
+  var showTimeout = null;
+  var tick = null;
+  var startedAt = 0;
+
+  function startLoading() {
+    startedAt = Date.now();
+    timerEl.textContent = "0";
+    searchBtn.disabled = true;
+
+    // Cached searches finish almost instantly, so only show the box if it takes a moment
+    showTimeout = setTimeout(function () {
+      box.hidden = false;
+      tick = setInterval(function () {
+        timerEl.textContent = Math.floor((Date.now() - startedAt) / 1000);
+      }, 500);
+    }, 1200);
+  }
+
+  function stopLoading() {
+    clearTimeout(showTimeout);
+    clearInterval(tick);
+    box.hidden = true;
+    searchBtn.disabled = false;
+  }
+
+  window.fetch = function (input) {
+    var url = typeof input === "string" ? input : (input && input.url) || "";
+    var isSearch = url.indexOf("/api/search") !== -1;
+
+    if (!isSearch) {
+      return originalFetch.apply(this, arguments);
+    }
+
+    startLoading();
+
+    return originalFetch.apply(this, arguments).then(
+      function (response) { stopLoading(); return response; },
+      function (error) { stopLoading(); throw error; }
+    );
+  };
+})();
+</script>
+<script src="/static/app.js"></script></body></html>
